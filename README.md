@@ -1,7 +1,9 @@
-Closed due to archival
-
 [![JetBrains Research](https://jb.gg/badges/research.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![Gradle Build](https://github.com/JetBrains-Research/llm-guide-refactorings/actions/workflows/gradle-build.yml/badge.svg)](https://github.com/JetBrains-Research/llm-guide-refactorings/actions/workflows/gradle-build.yml)
+
+# Status: Archived 
+
+No longer maintained
 
 # LLMs guide IDE refactorings - Extract Function
 
