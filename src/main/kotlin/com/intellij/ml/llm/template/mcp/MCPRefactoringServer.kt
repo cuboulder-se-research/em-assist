@@ -29,6 +29,12 @@ import kotlinx.io.buffered
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import io.ktor.server.routing.routing
+import com.intellij.ml.llm.template.extractfunction.EFCandidate
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.editor.Editor
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import java.io.File
 
 @Serializable
@@ -37,58 +43,27 @@ data class GetCandidatesArgs(val filePath: String, val line: Int? = null)
 class MCPRefactoringServer {
     private val logger = Logger.getInstance(MCPRefactoringServer::class.java)
     private var serverJob: Job? = null
+    private var isRunning = false
+    private val candidatesCache = mutableMapOf<String, List<EFCandidate>>()
 
+    @Synchronized
     fun start() {
+        if (isRunning) {
+            logger.info("MCP Refactoring Server is already running.")
+            return
+        }
+        isRunning = true
         logger.info("Starting MCP Refactoring Server...")
         serverJob = CoroutineScope(Dispatchers.IO).launch {
-            val server = Server(
-                Implementation("em-assist", "0.1.0"),
-                ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = true)))
-            )
-
-            val transport = StdioServerTransport(
-                System.`in`.asInput(),
-                System.out.asSink().buffered()
-            )
-            runBlocking {
-                server.connect(transport)
-                val done = Job()
-                server.onClose {
-                    done.complete()
-                }
-                done.join()
-            }
-
-            server.addTool(
-                name = "example-tool",
-                description = "An example tool",
-                inputSchema = Tool.Input(
-                    properties = buildJsonObject {
-                        put("input", buildJsonObject { put("type", "string") })
-                    }
-                )
-            ) { request ->
-                CallToolResult(content = listOf(TextContent("Hello, world!")))
-            }
-
-            embeddedServer(CIO, host = "127.0.0.1", port = 8001) {
-                mcp {
-                    server
-                }
-            }.start(wait = true)
-
+        val server = Server(
+            Implementation("em-assist", "0.1.0"),
+            ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = true)))
+        )
+            // Register tools first
             server.addTool(
                 name = "list_extract_function_candidates",
                 description = "Lists code fragments that can be extracted into a new function in a given file.",
-                inputSchema = Tool.Input(
-                    properties = buildJsonObject {
-                        putJsonObject("state") {
-                            put("type", "string")
-                            put("description", "Two-letter US state code (e.g. CA, NY)")
-                        }
-                    },
-                    required = listOf("state")
-                )
+                inputSchema = GetCandidatesArgs.serializer()
             ) { args ->
                 val result = CompletableDeferred<CallToolResult>()
 
@@ -99,93 +74,100 @@ class MCPRefactoringServer {
                         return@executeOnPooledThread
                     }
 
-//                    val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(File(args.filePath))
-//                    if (virtualFile == null) {
-//                        result.complete(CallToolResult(content = listOf(TextContent("File not found: ${args.filePath}")), isError = true))
-//                        return@executeOnPooledThread
-//                    }
+                    val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(File(args.filePath))
+                    if (virtualFile == null) {
+                        result.complete(CallToolResult(content = listOf(TextContent("File not found: ${args.filePath}")), isError = true))
+                        return@executeOnPooledThread
+                    }
 
-//                    ApplicationManager.getApplication().runReadAction {
-//                        val psiFile = PsiManager.getInstance(project).findFile(virtualFile)
-//                        val document = FileDocumentManager.getInstance().getDocument(virtualFile)
-//
-//                        if (psiFile == null || document == null) {
-//                            result.complete(CallToolResult(content = listOf(TextContent("Could not parse file")), isError = true))
-//                            return@runReadAction
-//                        }
-//
-//                        val offset = if (args.line != null) {
-//                            document.getLineStartOffset(args.line - 1)
-//                        } else {
-//                            0
-//                        }
-//
-//                        val element = psiFile.findElementAt(offset)
-//                        val namedElement = if (element != null) {
-//                            PsiUtils.getParentFunctionOrNull(element, psiFile.language)
-//                        } else {
-//                            null
-//                        }
-//
-//                        if (namedElement == null) {
-//                            result.complete(CallToolResult(content = listOf(TextContent("No function found at location")), isError = true))
-//                            return@runReadAction
-//                        }
-//
-//                        val codeSnippet = namedElement.text
-//                        val startLineNumber = document.getLineNumber(namedElement.textRange.startOffset) + 1
-//
-//                        // This part usually involves calling the LLM, which we'll do outside the read action
-//                        CoroutineScope(Dispatchers.IO).launch {
-//                            try {
-//                                val messageList = fewShotExtractSuggestion(codeSnippet)
-//                                val response = sendChatRequest(
-//                                    project, messageList, GPTExtractFunctionRequestProvider.chatModel, GPTExtractFunctionRequestProvider
-//                                )
-//
-//                                if (response == null || response.getSuggestions().isEmpty()) {
-//                                    result.complete(CallToolResult(content = listOf(TextContent("No suggestions from LLM")), isError = false))
-//                                    return@launch
-//                                }
-//
-//                                val llmResponse = response.getSuggestions()[0]
-//                                val efSuggestionList = identifyExtractFunctionSuggestions(llmResponse.text)
-//
-//                                // We need an editor to build candidates, but since we are headless,
-//                                // we might need to mock it or refactor EFCandidateFactory to only need document/file.
-//                                // For now, we'll return the raw suggestions.
-//
-//                                val suggestionsText = efSuggestionList.suggestionList.joinToString("\n") {
-//                                    "- ${it.functionName} (lines ${it.lineStart}-${it.lineEnd})"
-//                                }
-//
-//                                result.complete(CallToolResult(content = listOf(TextContent("Found candidates:\n$suggestionsText")), isError = false))
-//                            } catch (e: Exception) {
-//                                result.complete(CallToolResult(content = listOf(TextContent("Error processing suggestions: ${e.message}")), isError = true))
-//                            }
-//                        }
-//                    }
+                    ApplicationManager.getApplication().runReadAction {
+                        val psiFile = PsiManager.getInstance(project).findFile(virtualFile)
+                        val document = FileDocumentManager.getInstance().getDocument(virtualFile)
+
+                        if (psiFile == null || document == null) {
+                            result.complete(CallToolResult(content = listOf(TextContent("Could not parse file")), isError = true))
+                            return@runReadAction
+                        }
+
+                        val offset = if (args.line != null) {
+                            document.getLineStartOffset(args.line - 1)
+                        } else {
+                            0
+                        }
+
+                        val element = psiFile.findElementAt(offset)
+                        val namedElement = if (element != null) {
+                            PsiUtils.getParentFunctionOrNull(element, psiFile.language)
+                        } else {
+                            null
+                        }
+
+                        if (namedElement == null) {
+                            result.complete(CallToolResult(content = listOf(TextContent("No function found at location")), isError = true))
+                            return@runReadAction
+                        }
+
+                        val codeSnippet = namedElement.text
+                        
+                        // Use a background scope for the LLM request
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val messageList = fewShotExtractSuggestion(codeSnippet)
+                                val response = sendChatRequest(
+                                    project, messageList, GPTExtractFunctionRequestProvider.chatModel, GPTExtractFunctionRequestProvider
+                                )
+
+                                if (response == null || response.getSuggestions().isEmpty()) {
+                                    result.complete(CallToolResult(content = listOf(TextContent("No suggestions from LLM")), isError = false))
+                                    return@launch
+                                }
+
+                                val llmResponse = response.getSuggestions()[0]
+                                val efSuggestionList = identifyExtractFunctionSuggestions(llmResponse.text)
+                                
+                                // Build actual candidates to get offsets
+                                val candidates = EFCandidateFactory().buildCandidates(efSuggestionList.suggestionList, null, psiFile).toList()
+                                candidatesCache[args.filePath] = candidates
+
+                                val suggestionsText = candidates.withIndex().joinToString("\n") { (index, it) ->
+                                    "[$index] ${it.functionName} (lines ${it.lineStart}-${it.lineEnd})"
+                                }
+
+                                result.complete(CallToolResult(content = listOf(TextContent("Found candidates:\n$suggestionsText\n\nUse apply_extract_function with filePath and index to apply.")), isError = false))
+                            } catch (e: Exception) {
+                                result.complete(CallToolResult(content = listOf(TextContent("Error processing suggestions: ${e.message}")), isError = true))
+                            }
+                        }
+                    }
                 }
 
                 result.await()
             }
 
-//            try {
-//                embeddedServer(CIO, port = 8081) {
-//                    install(SSE)
-//                    routing {
-//                        val transport = SseServerTransport("/mcp", )
-//                        val done = Job()
-//                        launch {
-//                            server.connect(transport)
-//                            done.complete()
-//                        }
-//                        done.join()
-//                    }
-//                }.start(wait = true)
-//            } catch (e: Exception) {
-//                logger.error("Failed to start MCP server", e)
-//            }
+            // Start Stdio transport in a separate job so it doesn't block the coroutine
+            launch {
+                val transport = StdioServerTransport(
+                    System.`in`.asInput(),
+                    System.out.asSink().buffered()
+                )
+                server.connect(transport)
+                val done = Job()
+                server.onClose { done.complete() }
+                done.join()
+            }
+
+            // Start SSE server if dependencies allow (port 8081 as per plan)
+            try {
+                embeddedServer(CIO, host = "0.0.0.0", port = 8001) {
+                    mcp {
+                        server
+                    }
+                }.start(wait = true)
+            } catch (e: NoClassDefFoundError) {
+                logger.warn("SSE transport skipped: Ktor server dependencies missing.")
+            } catch (e: Exception) {
+                logger.error("Failed to start SSE MCP server", e)
+            }
         }
     }
 
