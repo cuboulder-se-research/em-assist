@@ -3,7 +3,7 @@
 
 # Status: Archived 
 
-No longer maintained
+No longer maintained. Works for Intellij IDEA version 2023.3
 
 # LLMs guide IDE refactorings - Extract Function
 
