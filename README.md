@@ -18,6 +18,7 @@ the reliability of IntelliJ IDE to carry out correctly the code transformations.
 - [Getting started](#getting-started)
 - [ChatGPT communication config](#chatgpt-communication-configuration)
 - [Trigger Extract Function with ChatGPT](#triggering-extract-function-with-chatgpt)
+- [Triggering EM-Assist in Batch-Mode](#batch-mode)
 - [Telemetry Data](#telemetry-data)
 
 ## Getting started
@@ -75,6 +76,38 @@ Below this list, there's a panel showing the new function's signature. It includ
 To invoke the actual extraction, you can choose any of the candidates from the list, and you can either hit *Enter*,
 *double click*, or press the *Extract* button on the bottom left. If none of the proposed candidates suits your needs,
 you can dismiss the popup either by hitting the *Esc* key, or by *clicking* anywhere outside the popup window.
+
+# Batch Mode
+
+To enable large scale execution, it is possible to trigger EM-Assist via HTTP requests, after setting up the plugin. To trigger EM-assist without manual clicking in the UI. To do so:
+
+1. Configure the tool as discussed previously. Ensure that you can trigger the tool from UI.
+2. To trigger the tool in a headless mode, send a http post request to `http://localhost:8001/list_extract_function_candidates` with a Json paylad that looks like this:
+```json
+{
+   "filePath": "<Absolute path to the file where host method lies>",
+   "line": "Line number where the host method is defined"
+}
+```
+A successful request will yield a status code of 200, with a response in this schema:
+```json
+{
+   "candidates":
+    [
+       {
+          "functionName":"<suggested name>",
+          "offsetStart":<start_offset>,
+          "offsetEnd":<end_offset>,
+          "lineStart":<suggestion_start_line>,
+          "lineEnd":<suggestion_end_line>,
+          "efSuggestion":{<LLM raw suggestion>},
+          "type":"<AS_IS/ADJUSTED/INVALID>"
+       },
+       ...
+    ],
+   "error":null}
+```
+
 
 ## Telemetry data
 
