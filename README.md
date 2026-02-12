@@ -23,6 +23,14 @@ the reliability of IntelliJ IDE to carry out correctly the code transformations.
 
 ## Getting started
 
+### Plugin installation
+The plugin works for intellij idea version 2023.3.
+The latest version of the plugin is available in this repo [here](dist/llm-extract-function.zip). After downloading the zip file, install the plugin by following the instructions [here](https://www.jetbrains.com/help/idea/managing-plugins.html#install_plugin_from_disk). 
+
+Alternatively, you can install the plugin from the Jetbrains marketplace by searching for "LLM-Powered Extract Method". 
+
+### Setup
+
 - Sign up for OpenAI at https://beta.openai.com/signup
 - Get your OpenAI API key
 - Go to Settings | Tools | Large Language Models and enter your API key in the "OpenAI Key" field. If you are a member
