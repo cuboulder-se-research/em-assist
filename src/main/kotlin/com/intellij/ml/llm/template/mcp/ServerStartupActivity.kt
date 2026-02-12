@@ -4,9 +4,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.diagnostic.Logger
 
-class MCPServerStartupActivity : StartupActivity.Background {
-    private val logger = Logger.getInstance(MCPServerStartupActivity::class.java)
-    private val server = MCPRefactoringServer()
+class ServerStartupActivity : StartupActivity.Background {
+    private val logger = Logger.getInstance(ServerStartupActivity::class.java)
+    private val server = RefactoringServer()
 
     override fun runActivity(project: Project) {
         // We only want to start the server once, but runActivity might be called for each project.

@@ -9,16 +9,16 @@ dependencies {
     testImplementation("org.mongodb:mongodb-driver-sync:4.9.0") // added this line for MongoDB driver
     implementation(kotlin("stdlib-jdk8"))
 
-    val mcpVersion = "0.4.0"
     val slf4jVersion = "2.0.9"
     val ktorVersion = "2.3.13"
-    // MCP SDK
-    implementation("io.modelcontextprotocol:kotlin-sdk:$mcpVersion")
 
-    // Ktor for SSE Transport
+    // Ktor for HTTP Server
+    implementation("io.ktor:ktor-server-core:$ktorVersion")
+    implementation("io.ktor:ktor-server-cio:$ktorVersion")
+    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
     implementation("org.slf4j:slf4j-nop:$slf4jVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
 }
 
 plugins {

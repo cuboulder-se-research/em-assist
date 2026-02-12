@@ -41,6 +41,6 @@
 
         <notificationGroup id="AI notification group" displayType="STICKY_BALLOON" bundle="messages.LLMBundle" key="notification.group.name"/>
 
-        <backgroundPostStartupActivity implementation="com.intellij.ml.llm.template.mcp.MCPServerStartupActivity"/>
+        <backgroundPostStartupActivity implementation="com.intellij.ml.llm.template.mcp.ServerStartupActivity"/>
     </extensions>
 </idea-plugin>
