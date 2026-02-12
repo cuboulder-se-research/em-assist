@@ -79,16 +79,24 @@ you can dismiss the popup either by hitting the *Esc* key, or by *clicking* anyw
 
 # Batch Mode
 
-To enable large scale execution, it is possible to trigger EM-Assist via HTTP requests, after setting up the plugin. To trigger EM-assist without manual clicking in the UI. To do so:
+To execute EM-Assist on a large scale, you can trigger it automatically using HTTP requests after setting up the plugin. This allows you to run the tool without manually clicking in the UI. Here’s how:
 
-1. Configure the tool as discussed previously. Ensure that you can trigger the tool from UI.
-2. To trigger the tool in a headless mode, send a http post request to `http://localhost:8001/list_extract_function_candidates` with a Json paylad that looks like this:
+1. **Configure the Tool**: First, ensure the tool is correctly configured with your OpenAI key and you can trigger it successfully from the user interface.
+2. **Send an HTTP Request**: To initiate a headless execution, send an HTTP POST request to http://localhost:8001/list_extract_function_candidates with a JSON payload. The JSON should look like this:
 ```json
 {
    "filePath": "<Absolute path to the file where host method lies>",
    "line": "Line number where the host method is defined"
 }
 ```
+Example:
+```json
+{
+"filePath": "/path/to/my/code.py",
+"line": 12
+}
+```
+
 A successful request will yield a status code of 200, with a response in this schema:
 ```json
 {
@@ -105,7 +113,8 @@ A successful request will yield a status code of 200, with a response in this sc
        },
        ...
     ],
-   "error":null}
+   "error":null
+}
 ```
 
 
