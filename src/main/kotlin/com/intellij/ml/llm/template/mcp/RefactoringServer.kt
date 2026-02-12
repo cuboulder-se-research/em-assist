@@ -23,7 +23,13 @@ import com.intellij.openapi.diagnostic.Logger
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import com.intellij.ml.llm.template.extractfunction.EFCandidate
+import com.intellij.ml.llm.template.intentions.HeadlessExtractFunction
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import org.jetbrains.kotlin.idea.base.psi.getLineStartOffset
 import java.io.File
+import javax.swing.SwingUtilities
 
 @Serializable
 data class ExtractFunctionRequest(
@@ -104,43 +110,31 @@ class RefactoringServer {
                     result.complete(ExtractFunctionResponse(emptyList(), "Could not parse file"))
                     return@runReadAction
                 }
+                var editor: Editor? = null
+                SwingUtilities.invokeAndWait {
 
-                val offset = document.getLineStartOffset(line - 1)
-                val element = psiFile.findElementAt(offset)
-                val namedElement = if (element != null) {
-                    PsiUtils.getParentFunctionOrNull(element, psiFile.language)
-                } else {
-                    null
+                        editor = FileEditorManager.getInstance(project).openTextEditor(
+                            OpenFileDescriptor(
+                                project,
+                                virtualFile,
+                            ),
+                            true, // request focus to editor
+                        )!!
                 }
 
-                if (namedElement == null) {
-                    result.complete(ExtractFunctionResponse(emptyList(), "No function found at location"))
-                    return@runReadAction
+                val lineStartOffset = document.getLineStartOffset(line - 1)
+                SwingUtilities.invokeAndWait{
+                    editor?.selectionModel?.setSelection(lineStartOffset, lineStartOffset + 1)
                 }
-
-                val codeSnippet = namedElement.text
 
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val messageList = fewShotExtractSuggestion(codeSnippet)
-                        val response = sendChatRequest(
-                            project,
-                            messageList,
-                            GPTExtractFunctionRequestProvider.chatModel,
-                            GPTExtractFunctionRequestProvider
-                        )
-
-                        if (response == null || response.getSuggestions().isEmpty()) {
-                            result.complete(ExtractFunctionResponse(emptyList(), "No suggestions from LLM"))
-                            return@launch
-                        }
-
-                        val llmResponse = response.getSuggestions()[0]
-                        val efSuggestionList = identifyExtractFunctionSuggestions(llmResponse.text)
+                        val headlessEmAssist = HeadlessExtractFunction()
+                        SwingUtilities.invokeAndWait{ headlessEmAssist.invoke(project, editor = editor, file = psiFile) }
 
                         // For now just returning what we found as text, as per original logic's trajectory
                         result.complete(
-                            ExtractFunctionResponse(listOf("Found candidates from LLM: ${efSuggestionList.suggestionList.size}"))
+                            ExtractFunctionResponse(listOf("Found candidates from LLM: ${headlessEmAssist.candidates.size}"))
                         )
                     } catch (e: Exception) {
                         result.complete(ExtractFunctionResponse(emptyList(), "Error processing suggestions: ${e.message}"))

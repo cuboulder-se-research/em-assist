@@ -166,7 +166,7 @@ abstract class ApplyExtractFunctionTransformationIntention(
         }
     }
 
-    private fun showExtractFunctionPopup(
+    protected open fun showExtractFunctionPopup(
         project: Project,
         editor: Editor,
         file: PsiFile,
