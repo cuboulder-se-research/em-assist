@@ -9,6 +9,7 @@ import com.intellij.psi.PsiFile
 class HeadlessExtractFunction: ApplyExtractFunctionTransformationIntention() {
 
     val candidates: MutableList<EFCandidate> = mutableListOf()
+    @Volatile
     var completed: Boolean = false
     override fun getInstruction(project: Project, editor: Editor): String? {
         return "headless em-assist"

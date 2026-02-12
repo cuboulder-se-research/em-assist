@@ -1,12 +1,15 @@
 package com.intellij.ml.llm.template.extractfunction
 
 import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.Serializable
 
 enum class EfCandidateType(s: String) {
     AS_IS("AS_IS"),
     ADJUSTED("ADJUSTED"),
     INVALID("INVALID")
 }
+
+@Serializable
 data class EFCandidate(
     @SerializedName("functionName")
     var functionName: String,

@@ -39,7 +39,7 @@ data class ExtractFunctionRequest(
 
 @Serializable
 data class ExtractFunctionResponse(
-    val candidates: List<String>,
+    val candidates: List<EFCandidate>,
     val error: String? = null
 )
 
@@ -47,7 +47,6 @@ class RefactoringServer {
     private val logger = Logger.getInstance(RefactoringServer::class.java)
     private var serverJob: Job? = null
     private var isRunning = false
-    private val candidatesCache = mutableMapOf<String, List<EFCandidate>>()
 
     @Synchronized
     fun start() {
@@ -132,10 +131,22 @@ class RefactoringServer {
                         val headlessEmAssist = HeadlessExtractFunction()
                         SwingUtilities.invokeAndWait{ headlessEmAssist.invoke(project, editor = editor, file = psiFile) }
 
-                        // For now just returning what we found as text, as per original logic's trajectory
-                        result.complete(
-                            ExtractFunctionResponse(listOf("Found candidates from LLM: ${headlessEmAssist.candidates.size}"))
-                        )
+                        // Wait for the LLM process to complete and set 'completed' to true
+                        val timeoutLimit = 120000L // 60 seconds timeout
+                        val startTime = System.currentTimeMillis()
+                        while (!headlessEmAssist.completed && (System.currentTimeMillis() - startTime) < timeoutLimit) {
+                            delay(500)
+                        }
+
+                        if (headlessEmAssist.completed) {
+                            result.complete(
+                                ExtractFunctionResponse(headlessEmAssist.candidates)
+                            )
+                        } else {
+                            result.complete(
+                                ExtractFunctionResponse(emptyList(), "Timeout: LLM suggestions took too long or failed.")
+                            )
+                        }
                     } catch (e: Exception) {
                         result.complete(ExtractFunctionResponse(emptyList(), "Error processing suggestions: ${e.message}"))
                     }
