@@ -18,7 +18,7 @@ the reliability of IntelliJ IDE to carry out correctly the code transformations.
 - [Getting started](#getting-started)
 - [ChatGPT communication config](#chatgpt-communication-configuration)
 - [Trigger Extract Function with ChatGPT](#triggering-extract-function-with-chatgpt)
-- [Triggering EM-Assist in Batch-Mode](#batch-mode)
+- [Triggering EM-Assist in Pseudo-Headless Mode](#batch-mode)
 - [Telemetry Data](#telemetry-data)
 
 ## Getting started
@@ -77,11 +77,11 @@ To invoke the actual extraction, you can choose any of the candidates from the l
 *double click*, or press the *Extract* button on the bottom left. If none of the proposed candidates suits your needs,
 you can dismiss the popup either by hitting the *Esc* key, or by *clicking* anywhere outside the popup window.
 
-# Batch Mode
+# Triggering EM-Assist in Pseudo-Headless Mode
 
 To execute EM-Assist on a large scale, you can trigger it automatically using HTTP requests after setting up the plugin. This allows you to run the tool without manually clicking in the UI. Here’s how:
 
-1. **Configure the Tool**: First, ensure the tool is correctly configured with your OpenAI key and you can trigger it successfully from the user interface.
+1. **Configure the Tool**: First, ensure the tool is correctly configured with your OpenAI key and you can trigger it successfully from the user interface. Follow steps mentioned previously. 
 2. **Send an HTTP Request**: To initiate a headless execution, send an HTTP POST request to http://localhost:8001/list_extract_function_candidates with a JSON payload. The JSON should look like this:
 ```json
 {
